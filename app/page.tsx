@@ -74,6 +74,24 @@ function useFloatTime(active: boolean) {
   return time;
 }
 
+function formatSupabaseError(error: {
+  message?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+}) {
+  const parts = [
+    error.message,
+    error.details,
+    error.hint,
+    error.code && `Código: ${error.code}`,
+  ].filter(Boolean);
+
+  if (parts.length > 0) return parts.join(" — ");
+
+  return "No se pudo guardar. Verifica en Supabase las columnas color, country_code y country_name.";
+}
+
 function buildExploreStarsLayout(
   stars: Star[],
   focusId: number,
@@ -181,7 +199,7 @@ export default function Home() {
     setLoading(false);
 
     if (error) {
-      setError(`Error al enviar: ${error.message}`);
+      setError(`Error al enviar: ${formatSupabaseError(error)}`);
       console.error("Error en createMessage:", error);
     } else {
       setLastCreatedStarId(data.id);
