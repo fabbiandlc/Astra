@@ -260,8 +260,6 @@ export default function Home() {
           doubleClick={{ disabled: true }}
           panning={{ velocityDisabled: true }}
           onTransform={handleCameraTransform}
-          wrapperClass="!w-screen !h-screen !bg-transparent"
-          wrapperStyle={{ background: "transparent" }}
         >
           <TransformComponent
             wrapperClass="!w-screen !h-screen !bg-transparent"
