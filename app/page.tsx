@@ -1,7 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ColorPicker } from "@/app/components/ColorPicker";
+import { SpaceBackground } from "@/app/components/SpaceBackground";
+import { hexToRgb, starGlow } from "@/lib/color";
 import { supabase } from "@/lib/supabase";
+import {
+  TransformComponent,
+  TransformWrapper,
+  type ReactZoomPanPinchRef,
+} from "react-zoom-pan-pinch";
 
 type Star = {
   id: number;
@@ -10,24 +18,119 @@ type Star = {
   anonymous: boolean;
   x: number;
   y: number;
+  color?: string;
 };
 
+type ExploreStar = Star & {
+  worldX: number;
+  worldY: number;
+};
+
+const NEAR_RADIUS = 52;
+const FAR_RADIUS = 240;
+
+function seededRandom(seed: number) {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function getStarFloatOffset(id: number, time: number) {
+  const driftX = 2 + seededRandom(id) * 4;
+  const driftY = 2 + seededRandom(id + 2) * 4;
+  const speedX = 0.25 + seededRandom(id + 4) * 0.35;
+  const speedY = 0.2 + seededRandom(id + 5) * 0.4;
+  const phaseX = seededRandom(id + 6) * Math.PI * 2;
+  const phaseY = seededRandom(id + 7) * Math.PI * 2;
+
+  return {
+    x: Math.sin(time * speedX + phaseX) * driftX,
+    y: Math.cos(time * speedY + phaseY) * driftY,
+  };
+}
+
+function useFloatTime(active: boolean) {
+  const [time, setTime] = useState(0);
+
+  useEffect(() => {
+    if (!active) return;
+
+    const start = performance.now();
+    let frame = 0;
+
+    const tick = (now: number) => {
+      setTime((now - start) / 1000);
+      frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [active]);
+
+  return time;
+}
+
+function buildExploreStarsLayout(
+  stars: Star[],
+  focusId: number,
+  shuffle = false
+): ExploreStar[] {
+  const focus = stars.find((star) => star.id === focusId);
+  if (!focus) return [];
+
+  const others = stars
+    .filter((star) => star.id !== focusId)
+    .sort(
+      (a, b) =>
+        Math.abs(a.id - focusId) - Math.abs(b.id - focusId) || a.id - b.id
+    );
+
+  const layout: ExploreStar[] = [{ ...focus, worldX: 0, worldY: 0 }];
+  const count = others.length;
+
+  others.forEach((star, index) => {
+    const proximity = count <= 1 ? 0 : index / (count - 1);
+    const radius = NEAR_RADIUS + proximity * (FAR_RADIUS - NEAR_RADIUS);
+    const angle = shuffle
+      ? Math.random() * Math.PI * 2
+      : seededRandom(star.id) * Math.PI * 2;
+
+    layout.push({
+      ...star,
+      worldX: Math.cos(angle) * radius,
+      worldY: Math.sin(angle) * radius,
+    });
+  });
+
+  return layout;
+}
+
 export default function Home() {
+  const zoomRef = useRef<ReactZoomPanPinchRef | null>(null);
+  const cameraBase = useRef({ x: 0, y: 0 });
+  const [cameraParallax, setCameraParallax] = useState({
+    x: 0,
+    y: 0,
+    scale: 1,
+  });
   const [exploring, setExploring] = useState(false);
+  const [lastCreatedStarId, setLastCreatedStarId] = useState<number | null>(null);
 
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [anonymous, setAnonymous] = useState(false);
+  const [colorHex, setColorHex] = useState("#fde047");
 
   const [stars, setStars] = useState<Star[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [exploreStars, setExploreStars] = useState<ExploreStar[]>([]);
 
   async function loadStars() {
     const { data, error } = await supabase
       .from("messages")
-      .select("*");
+      .select("*")
+      .order("id", { ascending: true });
 
     if (!error && data) {
       setStars(data);
@@ -48,16 +151,18 @@ export default function Home() {
     setError(null);
     setSuccess(false);
 
-    const x = Math.floor(Math.random() * window.innerWidth);
-    const y = Math.floor(Math.random() * window.innerHeight);
-
-    const { error } = await supabase.from("messages").insert({
-      name: anonymous ? "Anónimo" : name || "Anónimo",
-      message,
-      anonymous,
-      x,
-      y,
-    });
+    const { data, error } = await supabase
+      .from("messages")
+      .insert({
+        name: anonymous ? "Anónimo" : name || "Anónimo",
+        message,
+        anonymous,
+        x: 0,
+        y: 0,
+        color: hexToRgb(colorHex),
+      })
+      .select("*")
+      .single();
 
     setLoading(false);
 
@@ -65,6 +170,7 @@ export default function Home() {
       setError(`Error al enviar: ${error.message}`);
       console.error("Error en createMessage:", error);
     } else {
+      setLastCreatedStarId(data.id);
       setMessage("");
       setName("");
       setSuccess(true);
@@ -73,40 +179,129 @@ export default function Home() {
     }
   }
 
+  const focusStarId = useMemo(() => {
+    if (lastCreatedStarId) return lastCreatedStarId;
+    return stars.length ? stars[stars.length - 1].id : null;
+  }, [lastCreatedStarId, stars]);
+
+  useEffect(() => {
+    if (!exploring || !focusStarId) return;
+
+    setExploreStars(buildExploreStarsLayout(stars, focusStarId));
+  }, [exploring, stars, focusStarId]);
+
+  useEffect(() => {
+    if (!exploring || !zoomRef.current) return;
+
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    zoomRef.current.setTransform(centerX, centerY, 1, 200);
+    cameraBase.current = { x: centerX, y: centerY };
+    setCameraParallax({ x: 0, y: 0, scale: 1 });
+  }, [exploring, exploreStars]);
+
+  const handleCameraTransform = useCallback((ref: ReactZoomPanPinchRef) => {
+    const { positionX, positionY, scale } = ref.state;
+    setCameraParallax({
+      x: positionX - cameraBase.current.x,
+      y: positionY - cameraBase.current.y,
+      scale,
+    });
+  }, []);
+
+  const floatTime = useFloatTime(exploring);
+
   if (exploring) {
     return (
-      <main className="w-screen h-screen bg-black relative overflow-hidden">
-        {stars.map((star) => (
-          <button
-            key={star.id}
-            className="absolute w-2 h-2 bg-white rounded-full hover:scale-150 transition"
-            style={{
-              left: `${star.x}px`,
-              top: `${star.y}px`,
-            }}
-            onClick={() => {
-              alert(
-                `${star.name}\n\n${star.message}`
-              );
-            }}
-          />
-        ))}
-
-        <button
-          onClick={() => setExploring(false)}
-          className="absolute top-5 left-5 text-white border border-white/20 px-4 py-2 rounded-xl"
+      <main className="relative w-screen h-screen overflow-hidden">
+        <SpaceBackground parallax={cameraParallax} />
+        <TransformWrapper
+          ref={zoomRef}
+          minScale={0.35}
+          maxScale={4}
+          limitToBounds={false}
+          centerOnInit={false}
+          wheel={{ step: 0.03, smoothStep: 0.003 }}
+          pinch={{ step: 2 }}
+          doubleClick={{ disabled: true }}
+          panning={{ velocityDisabled: true }}
+          onTransform={handleCameraTransform}
+          wrapperClass="!w-screen !h-screen !bg-transparent"
+          wrapperStyle={{ background: "transparent" }}
         >
-          Volver
-        </button>
+          <TransformComponent
+            wrapperClass="!w-screen !h-screen !bg-transparent"
+            contentClass="!w-0 !h-0 !bg-transparent"
+          >
+            <div className="relative">
+              {exploreStars.map((star) => {
+                const starColor = star.color || "rgb(255, 255, 255)";
+                const isFocus = star.id === focusStarId;
+                const offset = getStarFloatOffset(star.id, floatTime);
+
+                return (
+                <button
+                  key={star.id}
+                  type="button"
+                  className="absolute p-0 border-0 bg-transparent cursor-pointer group"
+                  style={{
+                    left: `${star.worldX}px`,
+                    top: `${star.worldY}px`,
+                  }}
+                  onClick={() => {
+                    alert(`${star.name}\n\n${star.message}`);
+                  }}
+                >
+                  <span
+                    className="block will-change-transform"
+                    style={{
+                      transform: `translate(${offset.x}px, ${offset.y}px)`,
+                    }}
+                  >
+                    <span
+                      className={`block rounded-full transition-transform duration-300 group-hover:scale-150 ${
+                        isFocus ? "w-3 h-3" : "w-2 h-2"
+                      }`}
+                      style={{
+                        backgroundColor: starColor,
+                        boxShadow: starGlow(starColor),
+                      }}
+                    />
+                  </span>
+                </button>
+              );
+              })}
+            </div>
+          </TransformComponent>
+        </TransformWrapper>
+
+        <div className="absolute top-5 left-5 flex gap-2">
+          <button
+            onClick={() => setExploring(false)}
+            className="text-white border border-white/20 px-4 py-2 rounded-xl bg-black/40"
+          >
+            Volver
+          </button>
+          <button
+            onClick={() => {
+              if (!focusStarId) return;
+              setExploreStars(buildExploreStarsLayout(stars, focusStarId, true));
+            }}
+            className="text-white border border-white/20 px-4 py-2 rounded-xl bg-black/40"
+          >
+            Reordenar
+          </button>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="w-screen h-screen bg-black flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
+    <main className="relative w-screen h-screen overflow-hidden flex items-center justify-center px-4">
+      <SpaceBackground />
+      <div className="relative z-10 w-full max-w-md bg-black/30 border border-white/15 rounded-2xl p-6 backdrop-blur-md shadow-2xl">
         <h1 className="text-white text-3xl mb-6 text-center font-light">
-          Night Sky
+          No se como llamarlo lol...
         </h1>
 
         <input
@@ -129,7 +324,7 @@ export default function Home() {
           {message.length} / 200
         </p>
 
-        <label className="flex items-center gap-2 text-white mb-6">
+        <label className="flex items-center gap-2 text-white mb-4">
           <input
             type="checkbox"
             checked={anonymous}
@@ -137,6 +332,8 @@ export default function Home() {
           />
           Anónimo
         </label>
+
+        <ColorPicker hex={colorHex} onChange={setColorHex} />
 
         {error && (
           <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-xl text-sm">
