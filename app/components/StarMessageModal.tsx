@@ -7,21 +7,31 @@ import { starGlow } from "@/lib/color";
 type StarMessageModalProps = {
   name: string;
   message: string;
+  createdAt?: string | null;
   countryCode?: string | null;
   countryName?: string | null;
   color?: string;
   onClose: () => void;
 };
 
+function formatCreatedAt(value: string) {
+  return new Intl.DateTimeFormat("es", {
+    dateStyle: "long",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 export function StarMessageModal({
   name,
   message,
+  createdAt,
   countryCode,
   countryName,
   color = "rgb(255, 255, 255)",
   onClose,
 }: StarMessageModalProps) {
   const hasCountry = Boolean(countryCode);
+  const formattedDate = createdAt ? formatCreatedAt(createdAt) : null;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -72,6 +82,9 @@ export function StarMessageModal({
             </h2>
             {countryName && (
               <p className="text-white/50 text-sm truncate">{countryName}</p>
+            )}
+            {formattedDate && (
+              <p className="text-white/40 text-xs mt-0.5">{formattedDate}</p>
             )}
           </div>
         </div>

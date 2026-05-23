@@ -24,6 +24,7 @@ type Star = {
   color?: string;
   country_code?: string | null;
   country_name?: string | null;
+  created_at?: string;
 };
 
 type ExploreStar = Star & {
@@ -310,6 +311,7 @@ export default function Home() {
           <StarMessageModal
             name={selectedStar.name}
             message={selectedStar.message}
+            createdAt={selectedStar.created_at}
             countryCode={selectedStar.country_code}
             countryName={selectedStar.country_name}
             color={selectedStar.color}
