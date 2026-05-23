@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ColorPicker } from "@/app/components/ColorPicker";
+import { CountrySelect } from "@/app/components/CountrySelect";
+import { type Country } from "@/lib/countries";
 import { SpaceBackground } from "@/app/components/SpaceBackground";
+import { StarMessageModal } from "@/app/components/StarMessageModal";
 import { hexToRgb, starGlow } from "@/lib/color";
 import { supabase } from "@/lib/supabase";
 import {
@@ -19,6 +22,8 @@ type Star = {
   x: number;
   y: number;
   color?: string;
+  country_code?: string | null;
+  country_name?: string | null;
 };
 
 type ExploreStar = Star & {
@@ -119,12 +124,14 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [anonymous, setAnonymous] = useState(false);
   const [colorHex, setColorHex] = useState("#fde047");
+  const [country, setCountry] = useState<Country | null>(null);
 
   const [stars, setStars] = useState<Star[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [exploreStars, setExploreStars] = useState<ExploreStar[]>([]);
+  const [selectedStar, setSelectedStar] = useState<ExploreStar | null>(null);
 
   async function loadStars() {
     const { data, error } = await supabase
@@ -147,6 +154,11 @@ export default function Home() {
       return;
     }
 
+    if (!country) {
+      setError("Selecciona tu país de la lista");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(false);
@@ -160,6 +172,8 @@ export default function Home() {
         x: 0,
         y: 0,
         color: hexToRgb(colorHex),
+        country_code: country.code,
+        country_name: country.name,
       })
       .select("*")
       .single();
@@ -173,6 +187,7 @@ export default function Home() {
       setLastCreatedStarId(data.id);
       setMessage("");
       setName("");
+      setCountry(null);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
       loadStars();
@@ -221,7 +236,7 @@ export default function Home() {
           maxScale={4}
           limitToBounds={false}
           centerOnInit={false}
-          wheel={{ step: 0.03, smoothStep: 0.003 }}
+          wheel={{ step: 0.03 }}
           pinch={{ step: 2 }}
           doubleClick={{ disabled: true }}
           panning={{ velocityDisabled: true }}
@@ -248,9 +263,7 @@ export default function Home() {
                     left: `${star.worldX}px`,
                     top: `${star.worldY}px`,
                   }}
-                  onClick={() => {
-                    alert(`${star.name}\n\n${star.message}`);
-                  }}
+                  onClick={() => setSelectedStar(star)}
                 >
                   <span
                     className="block will-change-transform"
@@ -275,10 +288,24 @@ export default function Home() {
           </TransformComponent>
         </TransformWrapper>
 
-        <div className="absolute top-5 left-5 flex gap-2">
+        {selectedStar && (
+          <StarMessageModal
+            name={selectedStar.name}
+            message={selectedStar.message}
+            countryCode={selectedStar.country_code}
+            countryName={selectedStar.country_name}
+            color={selectedStar.color}
+            onClose={() => setSelectedStar(null)}
+          />
+        )}
+
+        <div className="absolute top-5 left-5 z-10 flex gap-2">
           <button
-            onClick={() => setExploring(false)}
-            className="text-white border border-white/20 px-4 py-2 rounded-xl bg-black/40"
+            onClick={() => {
+              setSelectedStar(null);
+              setExploring(false);
+            }}
+            className="text-white border border-white/20 px-4 py-2 rounded-xl bg-black/40 backdrop-blur-sm"
           >
             Volver
           </button>
@@ -287,7 +314,7 @@ export default function Home() {
               if (!focusStarId) return;
               setExploreStars(buildExploreStarsLayout(stars, focusStarId, true));
             }}
-            className="text-white border border-white/20 px-4 py-2 rounded-xl bg-black/40"
+            className="text-white border border-white/20 px-4 py-2 rounded-xl bg-black/40 backdrop-blur-sm"
           >
             Reordenar
           </button>
@@ -311,6 +338,8 @@ export default function Home() {
           onChange={(e) => setName(e.target.value)}
           className="w-full mb-4 px-4 py-3 rounded-xl bg-white/10 text-white outline-none"
         />
+
+        <CountrySelect value={country} onChange={setCountry} />
 
         <textarea
           placeholder="Escribe un pensamiento..."
