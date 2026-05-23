@@ -43,12 +43,7 @@ export function StarMessageModal({
   }, [onClose]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="star-message-title"
-    >
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <button
         type="button"
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -56,16 +51,21 @@ export function StarMessageModal({
         aria-label="Cerrar"
       />
 
-      <div className="relative w-full max-w-md bg-black/30 border border-white/15 rounded-2xl p-6 backdrop-blur-md shadow-2xl">
-        <div className="flex items-center gap-3 mb-5 min-w-0">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="star-message-title"
+        className="relative w-full max-w-md max-h-[min(90dvh,640px)] overflow-y-auto bg-black/30 border border-white/15 rounded-2xl p-4 sm:p-6 backdrop-blur-md shadow-2xl"
+      >
+        <div className="flex items-start sm:items-center gap-3 mb-4 sm:mb-5 min-w-0">
           {hasCountry ? (
             <CountryFlag
               code={countryCode}
-              className="w-10 h-7 rounded-sm shrink-0 shadow-md"
+              className="w-9 h-6 sm:w-10 sm:h-7 rounded-sm shrink-0 shadow-md"
             />
           ) : (
             <span
-              className="w-4 h-4 rounded-full shrink-0"
+              className="w-4 h-4 rounded-full shrink-0 mt-0.5"
               style={{
                 backgroundColor: color,
                 boxShadow: starGlow(color),
@@ -73,24 +73,26 @@ export function StarMessageModal({
             />
           )}
 
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2
               id="star-message-title"
-              className="text-white text-xl font-light truncate"
+              className="text-white text-lg sm:text-xl font-light break-words"
             >
               {name}
             </h2>
             {countryName && (
-              <p className="text-white/50 text-sm truncate">{countryName}</p>
+              <p className="text-white/50 text-sm break-words">{countryName}</p>
             )}
             {formattedDate && (
-              <p className="text-white/40 text-xs mt-0.5">{formattedDate}</p>
+              <p className="text-white/40 text-xs mt-0.5 break-words">
+                {formattedDate}
+              </p>
             )}
           </div>
         </div>
 
-        <div className="mb-6 px-4 py-3 rounded-xl bg-white/10 border border-white/10">
-          <p className="text-white/90 text-sm leading-relaxed whitespace-pre-wrap">
+        <div className="mb-4 sm:mb-6 px-3 sm:px-4 py-3 rounded-xl bg-white/10 border border-white/10">
+          <p className="text-white/90 text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words">
             {message}
           </p>
         </div>
@@ -98,7 +100,7 @@ export function StarMessageModal({
         <button
           type="button"
           onClick={onClose}
-          className="w-full border border-white/20 text-white py-3 rounded-xl hover:bg-white/10 transition"
+          className="w-full min-h-11 border border-white/20 text-white py-3 rounded-xl hover:bg-white/10 transition text-sm sm:text-base"
         >
           Cerrar
         </button>

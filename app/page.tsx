@@ -234,6 +234,21 @@ export default function Home() {
     setCameraParallax({ x: 0, y: 0, scale: 1 });
   }, [exploring, exploreStars]);
 
+  useEffect(() => {
+    if (!exploring || !zoomRef.current) return;
+
+    function handleResize() {
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      const scale = zoomRef.current?.state.scale ?? 1;
+      zoomRef.current?.setTransform(centerX, centerY, scale, 0);
+      cameraBase.current = { x: centerX, y: centerY };
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [exploring]);
+
   const handleCameraTransform = useCallback((ref: ReactZoomPanPinchRef) => {
     const { positionX, positionY, scale } = ref.state;
     setCameraParallax({
@@ -247,7 +262,7 @@ export default function Home() {
 
   if (exploring) {
     return (
-      <main className="relative w-screen h-screen overflow-hidden">
+      <main className="relative w-full h-dvh overflow-hidden touch-none">
         <SpaceBackground parallax={cameraParallax} />
         <TransformWrapper
           ref={zoomRef}
@@ -262,8 +277,16 @@ export default function Home() {
           onTransform={handleCameraTransform}
         >
           <TransformComponent
-            wrapperClass="!w-screen !h-screen !bg-transparent"
-            contentClass="!w-0 !h-0 !bg-transparent"
+            wrapperStyle={{
+              width: "100%",
+              height: "100dvh",
+              background: "transparent",
+            }}
+            contentStyle={{
+              background: "transparent",
+              width: 0,
+              height: 0,
+            }}
           >
             <div className="relative">
               {exploreStars.map((star) => {
@@ -275,7 +298,7 @@ export default function Home() {
                 <button
                   key={star.id}
                   type="button"
-                  className="absolute p-0 border-0 bg-transparent cursor-pointer group"
+                  className="absolute p-2 -m-2 border-0 bg-transparent cursor-pointer group touch-manipulation"
                   style={{
                     left: `${star.worldX}px`,
                     top: `${star.worldY}px`,
@@ -289,8 +312,10 @@ export default function Home() {
                     }}
                   >
                     <span
-                      className={`block rounded-full transition-transform duration-300 group-hover:scale-150 ${
-                        isFocus ? "w-3 h-3" : "w-2 h-2"
+                      className={`block rounded-full transition-transform duration-300 group-hover:scale-150 group-active:scale-125 ${
+                        isFocus
+                          ? "w-4 h-4 md:w-3 md:h-3"
+                          : "w-3 h-3 md:w-2 md:h-2"
                       }`}
                       style={{
                         backgroundColor: starColor,
@@ -317,13 +342,13 @@ export default function Home() {
           />
         )}
 
-        <div className="absolute top-5 left-5 z-10 flex gap-2">
+        <div className="absolute top-[max(0.75rem,env(safe-area-inset-top))] left-[max(0.75rem,env(safe-area-inset-left))] z-10 flex flex-wrap gap-2 max-w-[calc(100%-1.5rem)]">
           <button
             onClick={() => {
               setSelectedStar(null);
               setExploring(false);
             }}
-            className="text-white border border-white/20 px-4 py-2 rounded-xl bg-black/40 backdrop-blur-sm"
+            className="min-h-10 text-white border border-white/20 px-3 sm:px-4 py-2 rounded-xl bg-black/40 backdrop-blur-sm text-sm sm:text-base touch-manipulation"
           >
             Volver
           </button>
@@ -332,7 +357,7 @@ export default function Home() {
               if (!focusStarId) return;
               setExploreStars(buildExploreStarsLayout(stars, focusStarId, true));
             }}
-            className="text-white border border-white/20 px-4 py-2 rounded-xl bg-black/40 backdrop-blur-sm"
+            className="min-h-10 text-white border border-white/20 px-3 sm:px-4 py-2 rounded-xl bg-black/40 backdrop-blur-sm text-sm sm:text-base touch-manipulation"
           >
             Reordenar
           </button>
@@ -342,10 +367,10 @@ export default function Home() {
   }
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden flex items-center justify-center px-4">
+    <main className="relative w-full min-h-dvh overflow-x-hidden overflow-y-auto flex items-start sm:items-center justify-center px-3 sm:px-4 py-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
       <SpaceBackground />
-      <div className="relative z-10 w-full max-w-md bg-black/30 border border-white/15 rounded-2xl p-6 backdrop-blur-md shadow-2xl">
-        <h1 className="text-white text-3xl mb-6 text-center font-light">
+      <div className="relative z-10 w-full max-w-md my-auto bg-black/30 border border-white/15 rounded-2xl p-4 sm:p-6 backdrop-blur-md shadow-2xl">
+        <h1 className="text-white text-2xl sm:text-3xl mb-4 sm:mb-6 text-center font-light leading-tight">
           No se como llamarlo lol...
         </h1>
 
@@ -354,7 +379,7 @@ export default function Home() {
           placeholder="Tu nombre"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full mb-4 px-4 py-3 rounded-xl bg-white/10 text-white outline-none"
+          className="w-full mb-3 sm:mb-4 px-4 py-3 rounded-xl bg-white/10 text-white outline-none border border-transparent focus:border-white/20"
         />
 
         <CountrySelect value={country} onChange={setCountry} />
@@ -364,18 +389,19 @@ export default function Home() {
           maxLength={200}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          className="w-full h-32 mb-2 px-4 py-3 rounded-xl bg-white/10 text-white outline-none resize-none"
+          className="w-full h-28 sm:h-32 mb-2 px-4 py-3 rounded-xl bg-white/10 text-white outline-none resize-none border border-transparent focus:border-white/20"
         />
 
-        <p className="text-white/50 text-sm mb-4">
+        <p className="text-white/50 text-xs sm:text-sm mb-3 sm:mb-4">
           {message.length} / 200
         </p>
 
-        <label className="flex items-center gap-2 text-white mb-4">
+        <label className="flex items-center gap-2 text-white mb-3 sm:mb-4 text-sm sm:text-base touch-manipulation">
           <input
             type="checkbox"
             checked={anonymous}
             onChange={(e) => setAnonymous(e.target.checked)}
+            className="h-4 w-4"
           />
           Anónimo
         </label>
@@ -383,22 +409,22 @@ export default function Home() {
         <ColorPicker hex={colorHex} onChange={setColorHex} />
 
         {error && (
-          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-xl text-sm">
+          <div className="mb-3 sm:mb-4 p-3 bg-red-500/20 border border-red-500/50 text-red-200 rounded-xl text-xs sm:text-sm break-words">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 text-green-200 rounded-xl text-sm">
+          <div className="mb-3 sm:mb-4 p-3 bg-green-500/20 border border-green-500/50 text-green-200 rounded-xl text-xs sm:text-sm">
             ¡Pensamiento enviado! ✨
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <button
             onClick={createMessage}
             disabled={loading}
-            className="flex-1 bg-white text-black py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 min-h-11 bg-white text-black py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base touch-manipulation"
           >
             {loading ? "Enviando..." : "Enviar"}
           </button>
@@ -406,7 +432,7 @@ export default function Home() {
           <button
             onClick={() => setExploring(true)}
             disabled={loading}
-            className="flex-1 border border-white/20 text-white py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 min-h-11 border border-white/20 text-white py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base touch-manipulation"
           >
             Explorar
           </button>

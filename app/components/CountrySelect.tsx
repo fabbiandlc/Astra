@@ -38,7 +38,7 @@ export function CountrySelect({ value, onChange }: CountrySelectProps) {
   }
 
   return (
-    <div ref={containerRef} className="relative mb-4">
+    <div ref={containerRef} className="relative mb-3 sm:mb-4">
       <p className="text-white/70 text-sm mb-2">País</p>
 
       <div className="relative">
@@ -71,13 +71,13 @@ export function CountrySelect({ value, onChange }: CountrySelectProps) {
       </div>
 
       {open && options.length > 0 && (
-        <ul className="absolute z-20 mt-2 w-full max-h-52 overflow-y-auto rounded-xl border border-white/15 bg-black/80 backdrop-blur-md shadow-xl">
+        <ul className="absolute z-20 mt-2 w-full max-h-40 sm:max-h-52 overflow-y-auto overscroll-contain rounded-xl border border-white/15 bg-black/80 backdrop-blur-md shadow-xl">
           {options.map((country) => (
             <li key={country.code}>
               <button
                 type="button"
                 onClick={() => selectCountry(country)}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-white hover:bg-white/10 transition"
+                className="w-full flex items-center gap-3 px-3 sm:px-4 py-3 sm:py-2.5 text-left text-white hover:bg-white/10 transition touch-manipulation"
               >
                 <CountryFlag code={country.code} className="w-7 h-5 rounded-sm shrink-0" />
                 <span className="text-sm">{country.name}</span>
