@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { CountryFlag } from "@/app/components/CountryFlag";
 import { starGlow } from "@/lib/color";
 
@@ -10,6 +10,7 @@ type StarMessageModalProps = {
   createdAt?: string | null;
   countryCode?: string | null;
   countryName?: string | null;
+  imageUrl?: string | null;
   color?: string;
   onClose: () => void;
 };
@@ -27,11 +28,17 @@ export function StarMessageModal({
   createdAt,
   countryCode,
   countryName,
+  imageUrl,
   color = "rgb(255, 255, 255)",
   onClose,
 }: StarMessageModalProps) {
+  const [showImage, setShowImage] = useState(Boolean(imageUrl));
   const hasCountry = Boolean(countryCode);
   const formattedDate = createdAt ? formatCreatedAt(createdAt) : null;
+
+  useEffect(() => {
+    setShowImage(Boolean(imageUrl));
+  }, [imageUrl]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -76,23 +83,35 @@ export function StarMessageModal({
           <div className="min-w-0 flex-1">
             <h2
               id="star-message-title"
-              className="text-white text-lg sm:text-xl font-light break-words"
+              className="text-white text-lg sm:text-xl font-light wrap-break-word"
             >
               {name}
             </h2>
             {countryName && (
-              <p className="text-white/50 text-sm break-words">{countryName}</p>
+              <p className="text-white/50 text-sm wrap-break-word">{countryName}</p>
             )}
             {formattedDate && (
-              <p className="text-white/40 text-xs mt-0.5 break-words">
+              <p className="text-white/40 text-xs mt-0.5 wrap-break-word">
                 {formattedDate}
               </p>
             )}
           </div>
         </div>
 
+        {imageUrl && showImage ? (
+          <div className="mb-4 sm:mb-6 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+            <img
+              src={imageUrl}
+              alt={`${name} image`}
+              loading="lazy"
+              onError={() => setShowImage(false)}
+              className="w-full h-48 sm:h-56 object-contain"
+            />
+          </div>
+        ) : null}
+
         <div className="mb-4 sm:mb-6 px-3 sm:px-4 py-3 rounded-xl bg-white/10 border border-white/10">
-          <p className="text-white/90 text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words">
+          <p className="text-white/90 text-sm sm:text-base leading-relaxed whitespace-pre-wrap wrap-break-word">
             {message}
           </p>
         </div>

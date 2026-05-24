@@ -24,6 +24,7 @@ type Star = {
   color?: string;
   country_code?: string | null;
   country_name?: string | null;
+  image_url?: string | null;
   created_at?: string;
 };
 
@@ -141,6 +142,7 @@ export default function Home() {
 
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [anonymous, setAnonymous] = useState(false);
   const [colorHex, setColorHex] = useState("#fde047");
   const [country, setCountry] = useState<Country | null>(null);
@@ -178,6 +180,17 @@ export default function Home() {
       return;
     }
 
+    if (imageUrl) {
+      const normalizedUrl = imageUrl.trim().toLowerCase();
+      const allowedImageTypes = /\.(jpe?g|png|webp|avif|svg)(\?.*)?$/i;
+      const isGif = /\.gif(\?.*)?$/i.test(normalizedUrl);
+
+      if (isGif || !allowedImageTypes.test(normalizedUrl)) {
+        setError("Solo se permiten imágenes normales (jpg, png, webp, avif, svg). No GIF.");
+        return;
+      }
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(false);
@@ -193,6 +206,7 @@ export default function Home() {
         color: hexToRgb(colorHex),
         country_code: country.code,
         country_name: country.name,
+        image_url: imageUrl ? imageUrl : null,
       })
       .select("*")
       .single();
@@ -205,6 +219,7 @@ export default function Home() {
     } else {
       setLastCreatedStarId(data.id);
       setMessage("");
+      setImageUrl("");
       setName("");
       setCountry(null);
       setSuccess(true);
@@ -338,6 +353,7 @@ export default function Home() {
             countryCode={selectedStar.country_code}
             countryName={selectedStar.country_name}
             color={selectedStar.color}
+            imageUrl={selectedStar.image_url}
             onClose={() => setSelectedStar(null)}
           />
         )}
@@ -383,6 +399,17 @@ export default function Home() {
         />
 
         <CountrySelect value={country} onChange={setCountry} />
+
+        <input
+          type="url"
+          placeholder="URL de imagen (opcional)"
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          className="w-full mb-3 sm:mb-4 px-4 py-3 rounded-xl bg-white/10 text-white outline-none border border-transparent focus:border-white/20"
+        />
+        <p className="text-white/50 text-xs sm:text-sm mb-3 sm:mb-4">
+          Solo imágenes normales: jpg, png, webp, avif o svg. GIF no permitido.
+        </p>
 
         <textarea
           placeholder="Escribe un pensamiento..."
